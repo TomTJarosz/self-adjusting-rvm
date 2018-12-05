@@ -30,7 +30,7 @@ import tensorflow as tf
 import cv2
 
 eye_cascade=cv2.CascadeClassifier('/home/pi/Documents/tensorflow-face-detection/utils/haarcascade_eye.xml')
-
+##eye_cascade=cv2.CascadeClassifier('./utils/haarcascade_eye.xml')
 _TITLE_LEFT_MARGIN = 10
 _TITLE_TOP_MARGIN = 10
 STANDARD_COLORS = [
@@ -374,7 +374,7 @@ def visualize_boxes_and_labels_on_image_array(image,
     classes=classess[imgnum][0:16]
     bestbox=[-1,-1,-1,-1]
     bestx=[-1,-1,-1,-1]
-    print 'scores='+str(scores)
+    #print 'scores='+str(scores)
     for i in xrange(len(boxes)):
         ymin, xmin, ymax, xmax = boxes[i]
         centy=((ymin+ymax)/2)-.5
@@ -392,9 +392,9 @@ def visualize_boxes_and_labels_on_image_array(image,
             bestx[quad]=xmax
             
     if bestx[0]==-1 and bestx[1]==-1 and bestx[2]==-1 and bestx[3]==-1:
-        print 'no best box'
+        #print 'no best box'
         continue
-    print 'bestboxes= '+str(bestbox)
+    #print 'bestboxes= '+str(bestbox)
     for ind in xrange(4):
         if bestbox[ind]==-1:
             continue
@@ -413,7 +413,7 @@ def visualize_boxes_and_labels_on_image_array(image,
         #roi_gray=cv2.resize(roi_gray,(roi_gray.shape[1]*2,roi_gray.shape[0]*2))
         minsize=np.sqrt(face_area/1000.0)
         pre_eyes = eye_cascade.detectMultiScale(roi_gray,minNeighbors=2,minSize=(int(minsize),int(minsize)))
-        print pre_eyes
+        #print pre_eyes
         draw_bounding_box_on_image_array(
         image[imgnum],
         ymin,
@@ -449,8 +449,8 @@ def visualize_boxes_and_labels_on_image_array(image,
         if len(eyes)!=0:
             center_y=int(minye+np.mean([(eyes[i][1])+(eyes[i][3]/2.0) for i in xrange(len(eyes))]))
             center_x=int(minxe+np.mean([(eyes[i][0])+(eyes[i][2]/2.0) for i in xrange(len(eyes))]))
-            print("eyes detected at x="+str(center_x)+" y="+str(center_y))
-            print 'YYYYYYEEEEEEESSSSSSSSSSSSSSSSS'
+            #print("eyes detected at x="+str(center_x)+" y="+str(center_y))
+            #print 'YYYYYYEEEEEEESSSSSSSSSSSSSSSSS'
             dot_color=(0,0,255)
         else:
             center_x=int(shape1*(xmin+xmax)/2.0)
@@ -459,6 +459,134 @@ def visualize_boxes_and_labels_on_image_array(image,
             #print'eyes not detected, but drawn at x='+str(center_x)+' y='+str(center_y)
         cv2.circle(image[imgnum],(center_x,center_y),6,dot_color,-1)
 
+
+
+def get_eye_locations(image,
+                      boxes,
+                      classes,
+                      scores,
+                      instance_masks=None,
+                      keypoints=None,
+                      use_normalized_coordinates=False,
+                      max_boxes_to_draw=20,
+                      min_score_thresh=.2,
+                      agnostic_mode=False,
+                      line_thickness=4,
+                      visualize=False):
+  """Overlay labeled boxes on an image with formatted scores and label names.
+
+  This function groups boxes that correspond to the same location
+  and creates a display string for each detection and overlays these
+  on the image.  Note that this function modifies the image array in-place
+  and does not return anything.
+
+  Args:
+    image: uint8 numpy array with shape (img_height, img_width, 3)
+    boxes: a numpy array of shape [N, 4]
+    classes: a numpy array of shape [N]
+    scores: a numpy array of shape [N] or None.  If scores=None, then
+      this function assumes that the boxes to be plotted are groundtruth
+      boxes and plot all boxes as black with no classes or scores.
+    category_index: a dict containing category dictionaries (each holding
+      category index `id` and category name `name`) keyed by category indices.
+    instance_masks: a numpy array of shape [N, image_height, image_width], can
+      be None
+    keypoints: a numpy array of shape [N, num_keypoints, 2], can
+      be None
+    use_normalized_coordinates: whether boxes is to be interpreted as
+      normalized coordinates or not.
+    max_boxes_to_draw: maximum number of boxes to visualize.  If None, draw
+      all boxes.
+    min_score_thresh: minimum score threshold for a box to be visualized
+    agnostic_mode: boolean (default: False) controlling whether to evaluate in
+      class-agnostic mode or not.  This mode will display scores but ignore
+      classes.
+    line_thickness: integer (default: 4) controlling line width of the boxes.
+  """
+  # Create a display string (and color) for every box location, group any boxes
+  # that correspond to the same location.
+  ret=[]
+  shape0=image.shape[0]
+  shape1=image.shape[1]
+  bestbox=[-1,-1,-1,-1]
+  bestx=[-1,-1,-1,-1]
+  #print 'scores='+str(scores)
+  for i in xrange(len(boxes)):
+      ymin, xmin, ymax, xmax = boxes[i]
+      centy=((ymin+ymax)/2)-.5
+      centx=((xmin+xmax)/2)-.5
+      if centx>=0 and centy>=0:
+          quad=3
+      if centx>=0 and centy<0:
+          quad=0
+      if centx<0 and centy>=0:
+          quad=2
+      if centx<0 and centy<0:
+          quad=1
+      if ((ymax-ymin)*(xmax-xmin))>0.03 and xmax>bestx[quad] and classes[i]==1 and min_score_thresh<scores[i]:
+          bestbox[quad]=i
+          bestx[quad]=xmax
+          
+  if bestx[0]==-1 and bestx[1]==-1 and bestx[2]==-1 and bestx[3]==-1:
+      #print 'no best box'
+      return ret
+  #print 'bestboxes= '+str(bestbox)
+  for ind in xrange(4):
+      if bestbox[ind]==-1:
+          continue
+      box=boxes[bestbox[ind]]
+      color = 'Violet'
+      ymin, xmin, ymax, xmax = box
+
+      gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+      minye=max(int(shape0*ymin)-20,0)
+      maxye=min(int(shape0*ymax)+20,shape0-1)
+      minxe=max(int(shape1*xmin)-20,0)
+      maxxe=min(int(shape1*xmax)+20,shape1-1)
+      maxye=(maxye+minye)/2
+      roi_gray = gray[minye:maxye, minxe:maxxe]
+      face_area=(ymax-ymin)*(xmax-xmin)*shape0*shape1
+      #roi_gray=cv2.resize(roi_gray,(roi_gray.shape[1]*2,roi_gray.shape[0]*2))
+      minsize=np.sqrt(face_area/1000.0)
+      pre_eyes = eye_cascade.detectMultiScale(roi_gray,minNeighbors=2,minSize=(int(minsize),int(minsize)))
+      if len(pre_eyes)>2:
+          ys=np.copy(pre_eyes[:,1])
+          index1=np.argmin(ys)
+          ys[index1]=shape1+shape0
+          index2=np.argmin(ys)
+          while bad_intersect(pre_eyes[index1],pre_eyes[index2]):
+              newindex1=[index1,index2][np.argmin([pre_eyes[index1][2]*pre_eyes[index1][3],pre_eyes[index2][2]*pre_eyes[index2][3]])]
+              ys[index2]=shape1+shape0+1
+              ys[index1]=shape1+shape0+1
+              ys[newindex1]=shape1+shape0
+              index1=newindex1
+              index2=np.argmin(ys)
+              if index2==index1:
+                  break
+          eyes=[]
+          eyes.append(pre_eyes[index1])
+          if index1!=index2:
+              eyes.append(pre_eyes[index2])
+          #eyes=[]
+          #eyes.append(pre_eyes[index1])
+          #eyes.append(pre_eyes[index2])
+      else:
+          eyes=pre_eyes
+          
+      if len(eyes)!=0:
+          center_y=int(minye+np.mean([(eyes[i][1])+(eyes[i][3]/2.0) for i in xrange(len(eyes))]))
+          center_x=int(minxe+np.mean([(eyes[i][0])+(eyes[i][2]/2.0) for i in xrange(len(eyes))]))
+          #print("eyes detected at x="+str(center_x)+" y="+str(center_y))
+          dot_color=(0,0,255)
+      else:
+          center_x=int(shape1*(xmin+xmax)/2.0)
+          center_y=int(shape0*(ymin+((ymax-ymin)/4)))
+          dot_color=(255,0,0)
+          #print'eyes not detected, but drawn at x='+str(center_x)+' y='+str(center_y)
+      ret.append(np.array([center_x,center_y]))
+      if visualize:
+          cv2.circle(image,(center_x,center_y),6,dot_color,-1)
+  return ret
 
 def bad_intersect(i1,i2):
     topleftx=np.max([i1[0],i2[0]])
